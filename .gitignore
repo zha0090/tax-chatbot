@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Environment variables / secrets
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# Data files (large, provide download instructions in README)
+refers/
+data/raw/
+
+# Database
+*.sqlite3
+db.sqlite3
+
+# ChromaDB local storage
+chroma_data/
+
+# Neo4j
+neo4j_data/
+
+# OS
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# Logs
+*.log
+
+# pytest / coverage
+.pytest_cache/
+htmlcov/
+.coverage
