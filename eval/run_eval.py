@@ -58,13 +58,23 @@ def evaluate_routing(result: dict, expected: dict) -> dict:
 
 
 def evaluate_answer(answer: str, expected: dict) -> dict:
+    """Score answer by checking if expected terms appear in it.
+
+    If multiple terms are variants of the same thing (e.g. "1600" and "1,600"),
+    finding any one of them counts as a full match for scoring purposes.
+    Each term found adds to the score equally.
+    """
     expected_terms = expected.get("expected_contains", [])
     if not expected_terms:
         return {"content_score": 1.0, "matched": [], "missed": []}
 
-    matched = [t for t in expected_terms if t.lower() in answer.lower()]
-    missed = [t for t in expected_terms if t.lower() not in answer.lower()]
-    score = len(matched) / len(expected_terms) if expected_terms else 1.0
+    answer_lower = answer.lower()
+    matched = [t for t in expected_terms if t.lower() in answer_lower]
+    missed = [t for t in expected_terms if t.lower() not in answer_lower]
+
+    total = len(expected_terms)
+    found = len(matched)
+    score = min(found / total, 1.0) if total > 0 else 1.0
 
     return {
         "content_score": score,

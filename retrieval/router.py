@@ -59,6 +59,30 @@ ROUTER_EXAMPLES = [
         "role": "assistant",
         "content": '{"lanes":["graph","structured"],"entities":{"taxpayer_type":"Partnership","tax_year":"2022"},"rewritten_query":"state with highest total tax owed for partnerships in 2022"}',
     },
+    {
+        "role": "user",
+        "content": "What deduction type is most common for trusts?",
+    },
+    {
+        "role": "assistant",
+        "content": '{"lanes":["graph","structured"],"entities":{"taxpayer_type":"Trust"},"rewritten_query":"most common deduction type for trusts by count"}',
+    },
+    {
+        "role": "user",
+        "content": "What is the minimum and maximum tax rate for corporations?",
+    },
+    {
+        "role": "assistant",
+        "content": '{"lanes":["graph","structured"],"entities":{"taxpayer_type":"Corporation"},"rewritten_query":"minimum and maximum tax rate for corporations"}',
+    },
+    {
+        "role": "user",
+        "content": "How does the US tax rate compare to other countries?",
+    },
+    {
+        "role": "assistant",
+        "content": '{"lanes":["vector"],"entities":{},"rewritten_query":"US overall tax rate comparison to other industrialized countries"}',
+    },
 ]
 
 

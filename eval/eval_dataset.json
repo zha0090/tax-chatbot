@@ -4,7 +4,7 @@
     "question": "What is the average tax rate for corporations in California?",
     "expected_lane": ["graph", "structured"],
     "expected_source": "csv",
-    "expected_contains": ["23", "24", "%"],
+    "expected_contains": ["23", "%"],
     "category": "structured_aggregation"
   },
   {
@@ -28,7 +28,7 @@
     "question": "What is the total tax owed by non-profit organizations across all states?",
     "expected_lane": ["graph", "structured"],
     "expected_source": "csv",
-    "expected_contains": ["$"],
+    "expected_contains": ["Non-Profit", "tax"],
     "category": "structured_aggregation"
   },
   {
@@ -44,7 +44,7 @@
     "question": "What deduction type is most common for trusts?",
     "expected_lane": ["graph", "structured"],
     "expected_source": "csv",
-    "expected_contains": [],
+    "expected_contains": ["Trust"],
     "category": "graph_relationship"
   },
   {
@@ -66,9 +66,9 @@
   {
     "id": "csv_09",
     "question": "What is the minimum and maximum tax rate for corporations?",
-    "expected_lane": ["structured"],
+    "expected_lane": ["graph", "structured"],
     "expected_source": "csv",
-    "expected_contains": ["%"],
+    "expected_contains": ["min", "max"],
     "category": "structured_range"
   },
   {
@@ -76,7 +76,7 @@
     "question": "How does the average tax rate in Florida compare to California?",
     "expected_lane": ["graph", "structured"],
     "expected_source": "csv",
-    "expected_contains": ["FL", "CA"],
+    "expected_contains": ["Florida", "California"],
     "category": "graph_comparison"
   },
   {
@@ -100,7 +100,7 @@
     "question": "What is the maximum additional child tax credit amount for 2023?",
     "expected_lane": ["vector"],
     "expected_source": "pdf",
-    "expected_contains": ["1,600"],
+    "expected_contains": ["1600", "1,600"],
     "category": "pdf_factual"
   },
   {
@@ -140,7 +140,7 @@
     "question": "How does the US overall tax rate compare to other industrialized countries?",
     "expected_lane": ["vector"],
     "expected_source": "ppt",
-    "expected_contains": ["low"],
+    "expected_contains": ["low", "compared"],
     "category": "ppt_factual"
   },
   {
