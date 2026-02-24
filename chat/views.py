@@ -1,11 +1,17 @@
+import logging
+
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from retrieval.pipeline import get_pipeline
+
+logger = logging.getLogger(__name__)
+
 
 class ChatView(APIView):
-    """Main chat endpoint that accepts user queries and returns AI-generated answers."""
+    """Main chat endpoint: routes query through hybrid retrieval + LLM generation."""
 
     def post(self, request):
         query = request.data.get("query", "").strip()
@@ -14,14 +20,23 @@ class ChatView(APIView):
                 {"error": "query is required"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        # TODO: Wire up retrieval pipeline + LLM generation
-        return Response(
-            {
-                "query": query,
-                "answer": "Pipeline not yet connected.",
-                "sources": [],
-            }
-        )
+        try:
+            pipeline = get_pipeline()
+            result = pipeline.answer(query)
+            return Response(
+                {
+                    "query": query,
+                    "answer": result["answer"],
+                    "sources": result["sources"],
+                    "routing": result.get("routing_info"),
+                }
+            )
+        except Exception as e:
+            logger.exception("Chat pipeline error")
+            return Response(
+                {"error": f"Internal error: {e}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 @api_view(["GET"])

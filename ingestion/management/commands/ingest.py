@@ -14,10 +14,13 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+import pandas as pd
+
 from ingestion.embedder import embed_texts
 from ingestion.parsers.csv_parser import parse_csv
 from ingestion.parsers.pdf_parser import parse_pdf
 from ingestion.parsers.ppt_parser import parse_ppt
+from retrieval.graph_builder import build_graph, save_graph
 from retrieval.vector_search import VectorStore
 
 REFERS_DIR = Path(settings.BASE_DIR) / "refers"
@@ -106,6 +109,18 @@ class Command(BaseCommand):
             )
 
             total_indexed += indexed
+
+        csv_path = SOURCE_FILES.get("csv")
+        if csv_path and csv_path.exists():
+            self.stdout.write("\nBuilding knowledge graph from CSV...")
+            t0 = time.time()
+            df = pd.read_csv(csv_path)
+            G = build_graph(df)
+            save_graph(G)
+            self.stdout.write(
+                f"  Graph: {G.number_of_nodes()} nodes, "
+                f"{G.number_of_edges()} edges in {time.time() - t0:.1f}s"
+            )
 
         self.stdout.write(
             self.style.SUCCESS(

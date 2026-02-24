@@ -121,14 +121,18 @@
         const queryInput = document.getElementById('query-input');
         const sendBtn = document.getElementById('send-btn');
 
-        function addMessage(text, role, sources) {
+        function addMessage(text, role, sources, routing) {
             const div = document.createElement('div');
             div.className = `message ${role}`;
             div.textContent = text;
             if (sources && sources.length > 0) {
                 const srcDiv = document.createElement('div');
                 srcDiv.className = 'sources';
-                srcDiv.innerHTML = 'Sources: ' + sources.map(s => `<span>${s}</span>`).join('');
+                let info = 'Sources: ' + sources.map(s => `<span>${s}</span>`).join('');
+                if (routing && routing.lanes) {
+                    info += ' | Lanes: ' + routing.lanes.map(l => `<span>${l}</span>`).join('');
+                }
+                srcDiv.innerHTML = info;
                 div.appendChild(srcDiv);
             }
             chatContainer.appendChild(div);
@@ -157,7 +161,7 @@
                 });
                 const data = await resp.json();
                 typingDiv.remove();
-                addMessage(data.answer || data.error, 'assistant', data.sources);
+                addMessage(data.answer || data.error, 'assistant', data.sources, data.routing);
             } catch (err) {
                 typingDiv.remove();
                 addMessage('Error: Could not reach the server.', 'assistant');
