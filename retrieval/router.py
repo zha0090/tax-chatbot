@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import Any
 
 from django.conf import settings
 from openai import OpenAI
@@ -61,14 +62,17 @@ ROUTER_EXAMPLES = [
 ]
 
 
-def classify_query(query: str) -> dict:
+def classify_query(
+    query: str, client: OpenAI | None = None
+) -> dict[str, Any]:
     """Classify a user query into retrieval lanes and extract entities.
 
     Returns dict with keys: lanes, entities, rewritten_query.
     Falls back to vector search if classification fails.
     """
+    fallback = {"lanes": ["vector"], "entities": {}, "rewritten_query": query}
     try:
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        client = client or OpenAI(api_key=settings.OPENAI_API_KEY)
         messages = [
             {"role": "system", "content": ROUTER_SYSTEM_PROMPT},
             *ROUTER_EXAMPLES,
@@ -78,7 +82,7 @@ def classify_query(query: str) -> dict:
             model=settings.OPENAI_CHAT_MODEL,
             messages=messages,
             temperature=0,
-            max_tokens=300,
+            max_tokens=settings.OPENAI_ROUTER_MAX_TOKENS,
         )
         raw = response.choices[0].message.content.strip()
         result = json.loads(raw)
@@ -88,10 +92,9 @@ def classify_query(query: str) -> dict:
         if result["entities"].get("tax_year"):
             result["entities"]["tax_year"] = str(result["entities"]["tax_year"])
         return result
-    except Exception as e:
-        logger.warning("Query classification failed: %s", e)
-        return {
-            "lanes": ["vector"],
-            "entities": {},
-            "rewritten_query": query,
-        }
+    except json.JSONDecodeError:
+        logger.warning("Router returned invalid JSON for query: %s", query)
+        return fallback
+    except Exception:
+        logger.warning("Query classification failed", exc_info=True)
+        return fallback

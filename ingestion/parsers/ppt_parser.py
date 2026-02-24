@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import struct
 from pathlib import Path
 
@@ -7,6 +8,8 @@ import olefile
 from pptx import Presentation
 
 from .csv_parser import ParsedChunk
+
+logger = logging.getLogger(__name__)
 
 TEXT_BYTES_ATOM = 0x0FA0
 TEXT_CHARS_ATOM = 0x0FA8
@@ -61,9 +64,17 @@ def _parse_legacy_ppt(file_path: Path) -> list[dict]:
     TextCharsAtom (0x0FA8) records. Both are decoded as latin-1 since
     many legacy PPT files pack ASCII bytes into TextCharsAtom records.
     """
-    ole = olefile.OleFileIO(str(file_path))
+    try:
+        ole = olefile.OleFileIO(str(file_path))
+    except Exception:
+        logger.exception("Failed to open OLE file: %s", file_path)
+        return []
+
     try:
         data = ole.openstream("PowerPoint Document").read()
+    except Exception:
+        logger.exception("No PowerPoint Document stream in %s", file_path)
+        return []
     finally:
         ole.close()
 

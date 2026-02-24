@@ -32,7 +32,7 @@ SOURCE_FILES = {
     "ppt": REFERS_DIR / "MIC_3e_Ch11.ppt",
 }
 
-PDF_IRC_MAX_PAGES = 200
+PDF_IRC_MAX_PAGES = settings.IRC_MAX_PAGES_DEFAULT
 
 
 class Command(BaseCommand):
@@ -129,16 +129,22 @@ class Command(BaseCommand):
             )
         )
 
-    def _parse_source(self, source_key, file_path, irc_max_pages):
+    def _parse_source(
+        self, source_key: str, file_path: Path, irc_max_pages: int
+    ) -> list:
         if source_key == "csv":
             return parse_csv(file_path)
         elif source_key == "pdf_1040":
-            return parse_pdf(file_path, chunk_size=1000, chunk_overlap=200)
+            return parse_pdf(
+                file_path,
+                chunk_size=settings.CHUNK_SIZE_DEFAULT,
+                chunk_overlap=settings.CHUNK_OVERLAP_DEFAULT,
+            )
         elif source_key == "pdf_irc":
             return parse_pdf(
                 file_path,
-                chunk_size=1500,
-                chunk_overlap=300,
+                chunk_size=settings.CHUNK_SIZE_IRC,
+                chunk_overlap=settings.CHUNK_OVERLAP_IRC,
                 max_pages=irc_max_pages,
             )
         elif source_key == "ppt":

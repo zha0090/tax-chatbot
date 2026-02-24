@@ -40,32 +40,42 @@ class VectorStore:
 
     def _load(self) -> None:
         if self._index_path.exists() and self._meta_path.exists():
-            self._index = faiss.read_index(str(self._index_path))
-            with open(self._meta_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            self._documents = data["documents"]
-            self._metadatas = data["metadatas"]
-            self._ids = data["ids"]
-            logger.info("Loaded vector store: %d vectors", self._index.ntotal)
+            try:
+                self._index = faiss.read_index(str(self._index_path))
+                with open(self._meta_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                self._documents = data["documents"]
+                self._metadatas = data["metadatas"]
+                self._ids = data["ids"]
+                logger.info("Loaded vector store: %d vectors", self._index.ntotal)
+            except (json.JSONDecodeError, KeyError, OSError):
+                logger.exception("Corrupted vector store files, starting fresh")
+                self._reset()
         else:
-            self._index = None
-            self._documents = []
-            self._metadatas = []
-            self._ids = []
+            self._reset()
+
+    def _reset(self) -> None:
+        self._index = None
+        self._documents = []
+        self._metadatas = []
+        self._ids = []
 
     def _save(self) -> None:
-        if self._index is not None:
-            faiss.write_index(self._index, str(self._index_path))
-        with open(self._meta_path, "w", encoding="utf-8") as f:
-            json.dump(
-                {
-                    "documents": self._documents,
-                    "metadatas": self._metadatas,
-                    "ids": self._ids,
-                },
-                f,
-            )
-        logger.info("Saved vector store: %d vectors", len(self._ids))
+        try:
+            if self._index is not None:
+                faiss.write_index(self._index, str(self._index_path))
+            with open(self._meta_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "documents": self._documents,
+                        "metadatas": self._metadatas,
+                        "ids": self._ids,
+                    },
+                    f,
+                )
+            logger.info("Saved vector store: %d vectors", len(self._ids))
+        except OSError:
+            logger.exception("Failed to save vector store")
 
     def index_chunks(
         self,

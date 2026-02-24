@@ -4,35 +4,39 @@ import logging
 import time
 
 from django.conf import settings
-from openai import OpenAI
+from openai import APIConnectionError, APIError, OpenAI, RateLimitError
 
 logger = logging.getLogger(__name__)
 
-BATCH_SIZE = 100
-MAX_RETRIES = 3
-
 
 def get_client() -> OpenAI:
+    """Create an OpenAI client. Prefer reusing via ChatPipeline.openai_client."""
+    if not settings.OPENAI_API_KEY:
+        raise ValueError("OPENAI_API_KEY is not configured")
     return OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 def embed_texts(
     texts: list[str],
     model: str | None = None,
-    batch_size: int = BATCH_SIZE,
+    batch_size: int | None = None,
 ) -> list[list[float]]:
     """Embed a list of texts using the OpenAI embeddings API.
 
     Handles batching and retries automatically. Returns one embedding
     vector per input text, in the same order.
     """
+    if not texts:
+        return []
+
     model = model or settings.OPENAI_EMBEDDING_MODEL
+    batch_size = batch_size or settings.OPENAI_EMBED_BATCH_SIZE
+    max_chars = settings.OPENAI_EMBED_MAX_CHARS
     client = get_client()
     all_embeddings: list[list[float]] = []
 
     for i in range(0, len(texts), batch_size):
-        batch = texts[i : i + batch_size]
-        batch = [t[:8000] for t in batch]
+        batch = [t[:max_chars] for t in texts[i : i + batch_size]]
 
         embeddings = _embed_batch_with_retry(client, batch, model)
         all_embeddings.extend(embeddings)
@@ -55,18 +59,20 @@ def _embed_batch_with_retry(
     batch: list[str],
     model: str,
 ) -> list[list[float]]:
-    for attempt in range(1, MAX_RETRIES + 1):
+    max_retries = settings.OPENAI_EMBED_MAX_RETRIES
+    for attempt in range(1, max_retries + 1):
         try:
             response = client.embeddings.create(input=batch, model=model)
             return [item.embedding for item in response.data]
-        except Exception:
-            if attempt == MAX_RETRIES:
+        except RateLimitError:
+            if attempt == max_retries:
                 raise
             wait = 2**attempt
-            logger.warning(
-                "Embedding attempt %d failed, retrying in %ds...",
-                attempt,
-                wait,
-            )
+            logger.warning("Rate limited, retrying in %ds (attempt %d)", wait, attempt)
             time.sleep(wait)
-    return []
+        except (APIError, APIConnectionError):
+            if attempt == max_retries:
+                raise
+            wait = 2**attempt
+            logger.warning("API error, retrying in %ds (attempt %d)", wait, attempt)
+            time.sleep(wait)

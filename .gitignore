@@ -43,6 +43,9 @@ Thumbs.db
 .DS_Store
 Desktop.ini
 
+# Eval results (generated, not committed)
+eval/eval_results.json
+
 # Logs
 *.log
 

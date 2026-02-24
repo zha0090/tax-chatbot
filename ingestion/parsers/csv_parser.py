@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -23,15 +26,22 @@ def parse_csv(file_path: str | Path) -> list[ParsedChunk]:
 
     Each row becomes a natural-language chunk with all column values.
     Returns both per-row chunks and aggregate summary chunks.
+
+    Raises:
+        FileNotFoundError: If the CSV file does not exist.
+        pd.errors.ParserError: If the CSV is malformed.
     """
     file_path = Path(file_path)
     df = pd.read_csv(file_path)
     df.columns = df.columns.str.strip()
+    columns = df.columns.tolist()
     chunks: list[ParsedChunk] = []
 
-    for idx, row in df.iterrows():
-        text = _row_to_text(row)
-        metadata = {col: _serialize(row[col]) for col in df.columns}
+    for row in df.itertuples(index=True, name=None):
+        idx = row[0]
+        row_dict = {col: row[i + 1] for i, col in enumerate(columns)}
+        text = _row_dict_to_text(row_dict)
+        metadata = {col: _serialize(val) for col, val in row_dict.items()}
         metadata["row_index"] = int(idx)
         chunks.append(
             ParsedChunk(
@@ -55,16 +65,18 @@ def get_dataframe(file_path: str | Path) -> pd.DataFrame:
     return df
 
 
-def _row_to_text(row: pd.Series) -> str:
+def _row_dict_to_text(row_dict: dict[str, Any]) -> str:
     parts = []
-    for col, val in row.items():
-        if pd.notna(val):
+    for col, val in row_dict.items():
+        if val is not None and not (isinstance(val, float) and pd.isna(val)):
             parts.append(f"{col}: {val}")
     return ". ".join(parts) + "."
 
 
 def _serialize(val: Any) -> Any:
-    if pd.isna(val):
+    if val is None:
+        return None
+    if isinstance(val, float) and pd.isna(val):
         return None
     if isinstance(val, (int, float, str, bool)):
         return val

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 
 import pdfplumber
 
 from .csv_parser import ParsedChunk
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_CHUNK_SIZE = 1000
 DEFAULT_CHUNK_OVERLAP = 200
@@ -35,20 +38,22 @@ def _extract_pages(file_path: Path, max_pages: int | None = None) -> list[dict]:
     with pdfplumber.open(file_path) as pdf:
         page_list = pdf.pages[:max_pages] if max_pages else pdf.pages
         for page_num, page in enumerate(page_list, start=1):
-            text = page.extract_text() or ""
-            text = _clean_text(text)
+            try:
+                text = page.extract_text() or ""
+                text = _clean_text(text)
 
-            tables = page.extract_tables() or []
-            table_texts = []
-            for table in tables:
-                table_texts.append(_table_to_text(table))
+                tables = page.extract_tables() or []
+                table_texts = [_table_to_text(t) for t in tables]
 
-            full_text = text
-            if table_texts:
-                full_text += "\n\n" + "\n\n".join(table_texts)
+                full_text = text
+                if table_texts:
+                    full_text += "\n\n" + "\n\n".join(table_texts)
 
-            if full_text.strip():
-                pages.append({"page_num": page_num, "text": full_text.strip()})
+                if full_text.strip():
+                    pages.append({"page_num": page_num, "text": full_text.strip()})
+            except Exception:
+                logger.warning("Failed to extract page %d, skipping", page_num)
+                continue
 
     return pages
 

@@ -4,14 +4,17 @@ This is the central module that:
 1. Classifies the user query via the router
 2. Fetches context from the appropriate lanes
 3. Merges results into a unified context string
-4. Sends context + query to GPT-4o-mini for answer generation
+4. Sends context + query to the LLM for answer generation
 """
 
 from __future__ import annotations
 
 import logging
+import threading
 from pathlib import Path
+from typing import Any
 
+import networkx as nx
 import pandas as pd
 from django.conf import settings
 from openai import OpenAI
@@ -35,52 +38,77 @@ SYSTEM_PROMPT = """You are TaxGPT, a knowledgeable financial and tax assistant. 
 
 
 class ChatPipeline:
-    """Orchestrates the full query-to-answer pipeline."""
+    """Orchestrates the full query-to-answer pipeline.
 
-    def __init__(self):
+    Thread-safe: lazy-loaded resources are guarded by a lock so the pipeline
+    can be shared across Django's request threads via a module-level singleton.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
         self._vector_store: VectorStore | None = None
-        self._graph = None
+        self._graph: nx.DiGraph | None = None
         self._df: pd.DataFrame | None = None
+        self._openai_client: OpenAI | None = None
+
+    @property
+    def openai_client(self) -> OpenAI:
+        if self._openai_client is None:
+            with self._lock:
+                if self._openai_client is None:
+                    self._openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        return self._openai_client
 
     @property
     def vector_store(self) -> VectorStore:
         if self._vector_store is None:
-            self._vector_store = VectorStore()
+            with self._lock:
+                if self._vector_store is None:
+                    self._vector_store = VectorStore()
         return self._vector_store
 
     @property
-    def graph(self):
+    def graph(self) -> nx.DiGraph | None:
         if self._graph is None:
-            graph_path = Path(settings.GRAPH_PERSIST_PATH)
-            if graph_path.exists():
-                self._graph = load_graph(graph_path)
-            else:
-                logger.warning("Knowledge graph not found at %s", graph_path)
+            with self._lock:
+                if self._graph is None:
+                    graph_path = Path(settings.GRAPH_PERSIST_PATH)
+                    if graph_path.exists():
+                        try:
+                            self._graph = load_graph(graph_path)
+                        except Exception:
+                            logger.exception("Failed to load knowledge graph")
+                    else:
+                        logger.warning("Knowledge graph not found at %s", graph_path)
         return self._graph
 
     @property
     def df(self) -> pd.DataFrame | None:
         if self._df is None:
-            csv_path = Path(settings.BASE_DIR) / "refers" / "tax_data.csv"
-            if csv_path.exists():
-                self._df = pd.read_csv(csv_path)
-                self._df.columns = self._df.columns.str.strip()
+            with self._lock:
+                if self._df is None:
+                    csv_path = Path(settings.CSV_DATA_PATH)
+                    if csv_path.exists():
+                        try:
+                            self._df = pd.read_csv(csv_path)
+                            self._df.columns = self._df.columns.str.strip()
+                        except Exception:
+                            logger.exception("Failed to load CSV data")
+                    else:
+                        logger.warning("CSV data not found at %s", csv_path)
         return self._df
 
-    def answer(self, query: str) -> dict:
-        """Process a user query through the full pipeline.
-
-        Returns dict with: answer, sources, routing_info.
-        """
-        routing = classify_query(query)
+    def answer(self, query: str) -> dict[str, Any]:
+        """Process a user query through the full hybrid retrieval pipeline."""
+        routing = classify_query(query, client=self.openai_client)
         lanes = routing["lanes"]
         entities = routing["entities"]
         search_query = routing.get("rewritten_query", query)
 
         logger.info("Routing: lanes=%s, entities=%s", lanes, entities)
 
-        context_parts = []
-        sources = []
+        context_parts: list[tuple[str, str]] = []
+        sources: list[str] = []
 
         if "vector" in lanes:
             vec_ctx, vec_sources = self._vector_search(search_query)
@@ -111,19 +139,17 @@ class ChatPipeline:
         return {
             "answer": answer,
             "sources": list(set(sources)),
-            "routing_info": {
-                "lanes": lanes,
-                "entities": entities,
-            },
+            "routing_info": {"lanes": lanes, "entities": entities},
         }
 
-    def _vector_search(
-        self, query: str, n_results: int = 5
-    ) -> tuple[str, list[str]]:
+    def _vector_search(self, query: str) -> tuple[str, list[str]]:
+        """Retrieve semantically similar chunks from the vector store."""
         if self.vector_store.count() == 0:
             return "", []
 
-        results = self.vector_store.search(query, n_results=n_results)
+        results = self.vector_store.search(
+            query, n_results=settings.RETRIEVAL_TOP_K
+        )
         if not results:
             return "", []
 
@@ -207,15 +233,12 @@ class ChatPipeline:
         return "\n".join(parts)
 
     def _format_context(self, parts: list[tuple[str, str]]) -> str:
-        sections = []
-        for title, content in parts:
-            sections.append(f"=== {title} ===\n{content}")
-        return "\n\n".join(sections)
+        return "\n\n".join(f"=== {title} ===\n{content}" for title, content in parts)
 
     def _generate_answer(self, query: str, context: str) -> str:
+        """Send retrieved context + user query to the LLM for answer generation."""
         try:
-            client = OpenAI(api_key=settings.OPENAI_API_KEY)
-            response = client.chat.completions.create(
+            response = self.openai_client.chat.completions.create(
                 model=settings.OPENAI_CHAT_MODEL,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
@@ -224,21 +247,24 @@ class ChatPipeline:
                         "content": f"Context:\n{context}\n\nQuestion: {query}",
                     },
                 ],
-                temperature=0.1,
-                max_tokens=800,
+                temperature=settings.OPENAI_CHAT_TEMPERATURE,
+                max_tokens=settings.OPENAI_CHAT_MAX_TOKENS,
             )
             return response.choices[0].message.content.strip()
-        except Exception as e:
-            logger.error("LLM generation failed: %s", e)
-            return f"Sorry, I encountered an error generating the answer: {e}"
+        except Exception:
+            logger.exception("LLM generation failed")
+            return "Sorry, I encountered an error generating the answer. Please try again."
 
 
+_pipeline_lock = threading.Lock()
 _pipeline: ChatPipeline | None = None
 
 
 def get_pipeline() -> ChatPipeline:
-    """Get or create a singleton ChatPipeline instance."""
+    """Get or create a singleton ChatPipeline instance (thread-safe)."""
     global _pipeline
     if _pipeline is None:
-        _pipeline = ChatPipeline()
+        with _pipeline_lock:
+            if _pipeline is None:
+                _pipeline = ChatPipeline()
     return _pipeline

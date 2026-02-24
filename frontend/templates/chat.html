@@ -36,21 +36,37 @@
             max-width: 720px;
             padding: 14px 18px;
             border-radius: 12px;
-            line-height: 1.6;
+            line-height: 1.7;
             font-size: 15px;
-            white-space: pre-wrap;
         }
         .message.user {
             align-self: flex-end;
             background: #3b82f6;
             color: #fff;
             border-bottom-right-radius: 4px;
+            white-space: pre-wrap;
         }
         .message.assistant {
             align-self: flex-start;
             background: #1e293b;
             border: 1px solid #334155;
             border-bottom-left-radius: 4px;
+        }
+        .message.assistant .content p { margin-bottom: 8px; }
+        .message.assistant .content ul,
+        .message.assistant .content ol { margin: 6px 0 10px 20px; }
+        .message.assistant .content li { margin-bottom: 4px; }
+        .message.assistant .content strong { color: #f1f5f9; }
+        .message.assistant .content code {
+            background: #334155;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        .message.error {
+            border-color: #ef4444;
+            background: #1c1917;
+            color: #fca5a5;
         }
         .sources {
             margin-top: 10px;
@@ -59,7 +75,14 @@
             font-size: 12px;
             color: #94a3b8;
         }
-        .sources span { display: inline-block; background: #334155; padding: 2px 8px; border-radius: 4px; margin: 2px 4px 2px 0; }
+        .sources span {
+            display: inline-block;
+            background: #334155;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin: 2px 4px 2px 0;
+        }
+        .sources .lane { background: #1e3a5f; color: #93c5fd; }
         #input-bar {
             background: #1e293b;
             padding: 16px 24px;
@@ -90,7 +113,23 @@
         }
         #send-btn:hover { background: #2563eb; }
         #send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .typing { opacity: 0.6; font-style: italic; }
+        .typing {
+            align-self: flex-start;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-bottom-left-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .spinner {
+            width: 16px; height: 16px;
+            border: 2px solid #475569;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -101,19 +140,22 @@
 
     <div id="chat-container">
         <div class="message assistant">
-            Welcome! I can answer questions about:
-            - Tax transaction data (5,000 records across states, years, and taxpayer types)
-            - IRS Form 1040 instructions
-            - US Internal Revenue Code (Title 26)
-            - Financial concepts from presentations
-
-            Try asking something like: "What is the average tax rate for corporations in California?"
+            <div class="content">
+                <p>Welcome! I can answer questions about:</p>
+                <ul>
+                    <li>Tax transaction data (5,000 records across states, years, and taxpayer types)</li>
+                    <li>IRS Form 1040 instructions</li>
+                    <li>US Internal Revenue Code (Title 26)</li>
+                    <li>Financial concepts from presentations</li>
+                </ul>
+                <p>Try asking: <strong>"What is the average tax rate for corporations in California?"</strong></p>
+            </div>
         </div>
     </div>
 
     <div id="input-bar">
-        <input type="text" id="query-input" placeholder="Ask a financial or tax question..." autocomplete="off">
-        <button id="send-btn">Send</button>
+        <input type="text" id="query-input" placeholder="Ask a financial or tax question..." autocomplete="off" aria-label="Question input">
+        <button id="send-btn" aria-label="Send question">Send</button>
     </div>
 
     <script>
@@ -121,20 +163,44 @@
         const queryInput = document.getElementById('query-input');
         const sendBtn = document.getElementById('send-btn');
 
+        function renderMarkdown(text) {
+            let html = text
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/`(.+?)`/g, '<code>$1</code>')
+                .replace(/^[-•] (.+)$/gm, '<li>$1</li>')
+                .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
+                .replace(/\n{2,}/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+
+            html = html.replace(/((?:<li>.*<\/li>\s*)+)/g, '<ul>$1</ul>');
+            return '<p>' + html + '</p>';
+        }
+
         function addMessage(text, role, sources, routing) {
             const div = document.createElement('div');
             div.className = `message ${role}`;
-            div.textContent = text;
+
+            if (role === 'assistant') {
+                const content = document.createElement('div');
+                content.className = 'content';
+                content.innerHTML = renderMarkdown(text);
+                div.appendChild(content);
+            } else {
+                div.textContent = text;
+            }
+
             if (sources && sources.length > 0) {
                 const srcDiv = document.createElement('div');
                 srcDiv.className = 'sources';
                 let info = 'Sources: ' + sources.map(s => `<span>${s}</span>`).join('');
                 if (routing && routing.lanes) {
-                    info += ' | Lanes: ' + routing.lanes.map(l => `<span>${l}</span>`).join('');
+                    info += ' Lanes: ' + routing.lanes.map(l => `<span class="lane">${l}</span>`).join('');
                 }
                 srcDiv.innerHTML = info;
                 div.appendChild(srcDiv);
             }
+
             chatContainer.appendChild(div);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
@@ -148,8 +214,8 @@
             sendBtn.disabled = true;
 
             const typingDiv = document.createElement('div');
-            typingDiv.className = 'message assistant typing';
-            typingDiv.textContent = 'Thinking...';
+            typingDiv.className = 'message typing';
+            typingDiv.innerHTML = '<div class="spinner"></div> Thinking...';
             chatContainer.appendChild(typingDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
@@ -159,16 +225,29 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query }),
                 });
-                const data = await resp.json();
                 typingDiv.remove();
-                addMessage(data.answer || data.error, 'assistant', data.sources, data.routing);
+
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ error: `Server error (${resp.status})` }));
+                    const errDiv = document.createElement('div');
+                    errDiv.className = 'message assistant error';
+                    errDiv.textContent = err.error || `Request failed with status ${resp.status}`;
+                    chatContainer.appendChild(errDiv);
+                } else {
+                    const data = await resp.json();
+                    addMessage(data.answer || data.error, 'assistant', data.sources, data.routing);
+                }
             } catch (err) {
                 typingDiv.remove();
-                addMessage('Error: Could not reach the server.', 'assistant');
+                const errDiv = document.createElement('div');
+                errDiv.className = 'message assistant error';
+                errDiv.textContent = 'Could not reach the server. Is it running?';
+                chatContainer.appendChild(errDiv);
             }
 
             sendBtn.disabled = false;
             queryInput.focus();
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
         sendBtn.addEventListener('click', sendQuery);

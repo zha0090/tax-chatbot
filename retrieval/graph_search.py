@@ -35,6 +35,9 @@ def find_related(
     direction: str = "outgoing",
 ) -> list[dict[str, Any]]:
     """Find nodes connected to a given node, optionally filtered by relation type."""
+    if node_id not in G:
+        return []
+
     results = []
 
     if direction in ("outgoing", "both"):

@@ -9,7 +9,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-insecure-key-change-in-production")
 DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
-ALLOWED_HOSTS = ["*"]
+
+ALLOWED_HOSTS = ["*"] if DEBUG else os.getenv("ALLOWED_HOSTS", "localhost").split(",")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -78,7 +79,12 @@ STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "frontend" / "static"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOWED_ORIGINS = (
+    os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:8000").split(",")
+    if not DEBUG
+    else []
+)
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
@@ -87,14 +93,32 @@ REST_FRAMEWORK = {
     ],
 }
 
-# --- Project-specific settings ---
+# --- OpenAI ---
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
-OPENAI_CHAT_MODEL = "gpt-4o-mini"
+OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+OPENAI_CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+OPENAI_CHAT_TEMPERATURE = float(os.getenv("OPENAI_CHAT_TEMPERATURE", "0.1"))
+OPENAI_CHAT_MAX_TOKENS = int(os.getenv("OPENAI_CHAT_MAX_TOKENS", "800"))
+OPENAI_ROUTER_MAX_TOKENS = 300
+OPENAI_EMBED_BATCH_SIZE = 100
+OPENAI_EMBED_MAX_RETRIES = 3
+OPENAI_EMBED_MAX_CHARS = 8000
+
+# --- Data & Storage ---
 
 DATA_DIR = BASE_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 VECTOR_STORE_DIR = BASE_DIR / "vector_store_data"
 GRAPH_PERSIST_PATH = PROCESSED_DATA_DIR / "knowledge_graph.gpickle"
+CSV_DATA_PATH = BASE_DIR / "refers" / "tax_data.csv"
+
+# --- Retrieval ---
+
+RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "5"))
+CHUNK_SIZE_DEFAULT = 1000
+CHUNK_OVERLAP_DEFAULT = 200
+CHUNK_SIZE_IRC = 1500
+CHUNK_OVERLAP_IRC = 300
+IRC_MAX_PAGES_DEFAULT = 200

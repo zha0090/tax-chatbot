@@ -1,0 +1,162 @@
+[
+  {
+    "id": "csv_01",
+    "question": "What is the average tax rate for corporations in California?",
+    "expected_lane": ["graph", "structured"],
+    "expected_source": "csv",
+    "expected_contains": ["23", "24", "%"],
+    "category": "structured_aggregation"
+  },
+  {
+    "id": "csv_02",
+    "question": "How many records are there for individual taxpayers in Texas?",
+    "expected_lane": ["graph", "structured"],
+    "expected_source": "csv",
+    "expected_contains": ["records"],
+    "category": "structured_count"
+  },
+  {
+    "id": "csv_03",
+    "question": "Which state has the highest average tax rate for partnerships?",
+    "expected_lane": ["graph"],
+    "expected_source": "csv",
+    "expected_contains": ["%"],
+    "category": "graph_ranking"
+  },
+  {
+    "id": "csv_04",
+    "question": "What is the total tax owed by non-profit organizations across all states?",
+    "expected_lane": ["graph", "structured"],
+    "expected_source": "csv",
+    "expected_contains": ["$"],
+    "category": "structured_aggregation"
+  },
+  {
+    "id": "csv_05",
+    "question": "Compare the average income between corporations and individuals.",
+    "expected_lane": ["graph", "structured"],
+    "expected_source": "csv",
+    "expected_contains": ["Corporation", "Individual"],
+    "category": "graph_comparison"
+  },
+  {
+    "id": "csv_06",
+    "question": "What deduction type is most common for trusts?",
+    "expected_lane": ["graph", "structured"],
+    "expected_source": "csv",
+    "expected_contains": [],
+    "category": "graph_relationship"
+  },
+  {
+    "id": "csv_07",
+    "question": "What is the average tax rate in New York for tax year 2022?",
+    "expected_lane": ["graph", "structured"],
+    "expected_source": "csv",
+    "expected_contains": ["%"],
+    "category": "structured_filtered"
+  },
+  {
+    "id": "csv_08",
+    "question": "Which income source generates the highest total income for partnerships?",
+    "expected_lane": ["graph"],
+    "expected_source": "csv",
+    "expected_contains": [],
+    "category": "graph_ranking"
+  },
+  {
+    "id": "csv_09",
+    "question": "What is the minimum and maximum tax rate for corporations?",
+    "expected_lane": ["structured"],
+    "expected_source": "csv",
+    "expected_contains": ["%"],
+    "category": "structured_range"
+  },
+  {
+    "id": "csv_10",
+    "question": "How does the average tax rate in Florida compare to California?",
+    "expected_lane": ["graph", "structured"],
+    "expected_source": "csv",
+    "expected_contains": ["FL", "CA"],
+    "category": "graph_comparison"
+  },
+  {
+    "id": "pdf_01",
+    "question": "What are the standard deduction amounts for 2023?",
+    "expected_lane": ["vector"],
+    "expected_source": "pdf",
+    "expected_contains": ["13,850", "27,700"],
+    "category": "pdf_factual"
+  },
+  {
+    "id": "pdf_02",
+    "question": "When is the deadline to file Form 1040 for 2023?",
+    "expected_lane": ["vector"],
+    "expected_source": "pdf",
+    "expected_contains": ["April", "15", "2024"],
+    "category": "pdf_factual"
+  },
+  {
+    "id": "pdf_03",
+    "question": "What is the maximum additional child tax credit amount for 2023?",
+    "expected_lane": ["vector"],
+    "expected_source": "pdf",
+    "expected_contains": ["1,600"],
+    "category": "pdf_factual"
+  },
+  {
+    "id": "pdf_04",
+    "question": "How do I report self-employment income on my tax return?",
+    "expected_lane": ["vector"],
+    "expected_source": "pdf",
+    "expected_contains": ["Schedule"],
+    "category": "pdf_procedural"
+  },
+  {
+    "id": "pdf_05",
+    "question": "What is the Taxpayer Advocate Service?",
+    "expected_lane": ["vector"],
+    "expected_source": "pdf",
+    "expected_contains": ["TAS", "IRS"],
+    "category": "pdf_definitional"
+  },
+  {
+    "id": "ppt_01",
+    "question": "What happens to price and quantity when an excise tax is applied?",
+    "expected_lane": ["vector"],
+    "expected_source": "ppt",
+    "expected_contains": ["price", "quantity"],
+    "category": "ppt_conceptual"
+  },
+  {
+    "id": "ppt_02",
+    "question": "What is the effect of an excise tax when demand is inelastic?",
+    "expected_lane": ["vector"],
+    "expected_source": "ppt",
+    "expected_contains": ["consumer", "burden"],
+    "category": "ppt_conceptual"
+  },
+  {
+    "id": "ppt_03",
+    "question": "How does the US overall tax rate compare to other industrialized countries?",
+    "expected_lane": ["vector"],
+    "expected_source": "ppt",
+    "expected_contains": ["low"],
+    "category": "ppt_factual"
+  },
+  {
+    "id": "cross_01",
+    "question": "What is the average tax rate for corporations and what form do they use to file?",
+    "expected_lane": ["graph", "vector"],
+    "expected_source": "csv",
+    "expected_contains": ["%"],
+    "category": "cross_source"
+  },
+  {
+    "id": "cross_02",
+    "question": "Are there any tax benefits for charitable contributions, and how much do taxpayers typically deduct?",
+    "expected_lane": ["vector", "structured"],
+    "expected_source": "csv",
+    "expected_contains": ["Charitable"],
+    "category": "cross_source"
+  }
+]
