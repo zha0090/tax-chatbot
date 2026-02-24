@@ -31,7 +31,8 @@ data/raw/
 *.sqlite3
 db.sqlite3
 
-# ChromaDB local storage
+# Vector store data
+vector_store_data/
 chroma_data/
 
 # Neo4j
