@@ -107,6 +107,9 @@ class ChatPipeline:
 
         logger.info("Routing: lanes=%s, entities=%s", lanes, entities)
 
+        if "chitchat" in lanes:
+            return self._handle_chitchat(query, lanes)
+
         context_parts: list[tuple[str, str]] = []
         sources: list[str] = []
 
@@ -140,6 +143,25 @@ class ChatPipeline:
             "answer": answer,
             "sources": list(set(sources)),
             "routing_info": {"lanes": lanes, "entities": entities},
+        }
+
+    def _handle_chitchat(self, query: str, lanes: list[str]) -> dict[str, Any]:
+        """Respond to greetings and capability questions without hitting retrieval."""
+        return {
+            "answer": (
+                "Hello! I'm TaxGPT, a financial and tax assistant. I can help you with:\n\n"
+                "- **Tax data analysis**: Average tax rates, totals, comparisons across "
+                "states, taxpayer types, and years (5,000 records)\n"
+                "- **IRS Form 1040 instructions**: Filing requirements, deductions, credits, deadlines\n"
+                "- **US Tax Code (Title 26)**: Legal provisions and cross-references\n"
+                "- **Tax economics**: Concepts like excise taxes, elasticity, and welfare analysis\n\n"
+                "Try asking something specific like:\n"
+                '- "What is the average tax rate for corporations in California?"\n'
+                '- "What are the standard deduction amounts for 2023?"\n'
+                '- "Compare tax rates between partnerships and individuals"'
+            ),
+            "sources": [],
+            "routing_info": {"lanes": lanes, "entities": {}},
         }
 
     def _vector_search(self, query: str) -> tuple[str, list[str]]:
@@ -184,12 +206,12 @@ class ChatPipeline:
             filters.append(df["Deduction Type"] == entities["deduction_type"])
 
         if not filters:
-            return ""
-
-        mask = filters[0]
-        for f in filters[1:]:
-            mask = mask & f
-        subset = df[mask]
+            subset = df
+        else:
+            mask = filters[0]
+            for f in filters[1:]:
+                mask = mask & f
+            subset = df[mask]
 
         if subset.empty:
             return "No matching records found for the given criteria."
@@ -208,24 +230,24 @@ class ChatPipeline:
         parts.append(f"  Total Tax Owed: ${subset['Tax Owed'].sum():,.2f}")
         parts.append(f"  Average Tax Owed: ${subset['Tax Owed'].mean():,.2f}")
 
-        if entities.get("taxpayer_type") and not entities.get("state"):
+        if not entities.get("state"):
             by_state = (
                 subset.groupby("State")["Tax Rate"]
                 .mean()
                 .sort_values(ascending=False)
             )
-            parts.append("\n  Breakdown by State:")
-            for state, rate in by_state.items():
-                count = len(subset[subset["State"] == state])
-                parts.append(f"    {state}: {rate:.2%} ({count} records)")
+            parts.append("\n  Breakdown by State (avg tax rate):")
+            for st, rate in by_state.items():
+                count = len(subset[subset["State"] == st])
+                parts.append(f"    {st}: {rate:.2%} ({count} records)")
 
-        if entities.get("state") and not entities.get("taxpayer_type"):
+        if not entities.get("taxpayer_type"):
             by_type = (
                 subset.groupby("Taxpayer Type")["Tax Rate"]
                 .mean()
                 .sort_values(ascending=False)
             )
-            parts.append("\n  Breakdown by Taxpayer Type:")
+            parts.append("\n  Breakdown by Taxpayer Type (avg tax rate):")
             for tp, rate in by_type.items():
                 count = len(subset[subset["Taxpayer Type"] == tp])
                 parts.append(f"    {tp}: {rate:.2%} ({count} records)")

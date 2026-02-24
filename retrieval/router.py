@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 ROUTER_SYSTEM_PROMPT = """You are a query classifier for a financial/tax chatbot. Given a user question, output JSON with:
 
 1. "lanes": array of retrieval strategies to use. Pick one or more from:
+   - "chitchat": for greetings, thanks, or non-tax questions (hi, hello, thanks, what can you do, etc.)
    - "graph": for questions about relationships, comparisons, rankings, or aggregations over structured tax data (taxpayer types, states, years, income sources, deduction types).
    - "vector": for questions about tax rules, IRS form instructions, legal code, or conceptual/definitional questions.
    - "structured": for questions needing exact numerical lookups from the CSV dataset (totals, counts, specific amounts).
@@ -31,6 +32,8 @@ ROUTER_SYSTEM_PROMPT = """You are a query classifier for a financial/tax chatbot
    - "tax_year": integer year (2019-2023)
 
 3. "rewritten_query": a clearer version of the question optimized for search retrieval.
+
+Important: If a question asks about "the highest/lowest/total" across ALL data without specifying a filter, still use "graph" and "structured" lanes with no entities — the system will handle aggregations across the full dataset.
 
 Reply ONLY with valid JSON, no markdown."""
 
@@ -82,6 +85,38 @@ ROUTER_EXAMPLES = [
     {
         "role": "assistant",
         "content": '{"lanes":["vector"],"entities":{},"rewritten_query":"US overall tax rate comparison to other industrialized countries"}',
+    },
+    {
+        "role": "user",
+        "content": "hi",
+    },
+    {
+        "role": "assistant",
+        "content": '{"lanes":["chitchat"],"entities":{},"rewritten_query":"greeting"}',
+    },
+    {
+        "role": "user",
+        "content": "What is the highest tax rate?",
+    },
+    {
+        "role": "assistant",
+        "content": '{"lanes":["graph","structured"],"entities":{},"rewritten_query":"highest tax rate across all taxpayers and states"}',
+    },
+    {
+        "role": "user",
+        "content": "What can you explain to me?",
+    },
+    {
+        "role": "assistant",
+        "content": '{"lanes":["chitchat"],"entities":{},"rewritten_query":"capabilities"}',
+    },
+    {
+        "role": "user",
+        "content": "Which state has the lowest tax rate?",
+    },
+    {
+        "role": "assistant",
+        "content": '{"lanes":["graph","structured"],"entities":{},"rewritten_query":"state with the lowest average tax rate"}',
     },
 ]
 

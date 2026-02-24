@@ -192,6 +192,27 @@ def graph_context_for_query(G: nx.DiGraph, entities: dict[str, str]) -> str:
                 f"total tax owed ${node['total_tax_owed']:,.0f}."
             )
 
+    if not tp and not state and not income_src and not year:
+        state_ranking = rank_by_metric(G, "State", "avg_tax_rate", top_n=10)
+        if state_ranking:
+            lines = [
+                f"  {d['label']}: {d['avg_tax_rate']:.2%}"
+                for d in state_ranking
+            ]
+            parts.append(
+                "Average tax rate by state (highest to lowest):\n" + "\n".join(lines)
+            )
+
+        type_ranking = rank_by_metric(G, "TaxpayerType", "avg_tax_rate", top_n=5)
+        if type_ranking:
+            lines = [
+                f"  {d['label']}: {d['avg_tax_rate']:.2%}"
+                for d in type_ranking
+            ]
+            parts.append(
+                "Average tax rate by taxpayer type:\n" + "\n".join(lines)
+            )
+
     stats = get_global_stats(G)
     if stats:
         parts.append(
