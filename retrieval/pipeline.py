@@ -146,23 +146,65 @@ class ChatPipeline:
         }
 
     def _handle_chitchat(self, query: str, lanes: list[str]) -> dict[str, Any]:
-        """Respond to greetings and capability questions without hitting retrieval."""
+        """Respond to greetings, capability questions, and off-topic queries via the LLM."""
+        capabilities_context = (
+            "=== TAXGPT SYSTEM INFO ===\n"
+            "You are TaxGPT, a financial and tax research assistant.\n\n"
+            "WHAT YOU CAN DO:\n"
+            "- Analyze 5,000 tax transaction records (taxpayer types: Individual, Corporation, "
+            "Partnership, Non-Profit, Trust; states: CA, NY, TX, FL, PA, IL, OH, GA, NC, MI; years: 2019-2023)\n"
+            "- Answer questions about IRS Form 1040 instructions (2023 filing year)\n"
+            "- Look up provisions in the US Internal Revenue Code (Title 26)\n"
+            "- Explain tax economics concepts (excise taxes, elasticity, welfare analysis)\n"
+            "- Compare tax rates, incomes, and deductions across states and taxpayer types\n"
+            "- Rank states or taxpayer types by various metrics\n\n"
+            "WHAT YOU CANNOT DO:\n"
+            "- Give personalized tax advice (you are informational only, not a licensed advisor)\n"
+            "- Predict future tax trends or rates\n"
+            "- Access real-time IRS data, file returns, or check refund status\n"
+            "- Answer questions outside the tax/finance domain\n"
+            "- Access data beyond the 10 US states or years 2019-2023 in the dataset\n\n"
+            "EXAMPLE QUESTIONS USERS CAN ASK:\n"
+            '- "What is the average tax rate for corporations in California?"\n'
+            '- "What are the standard deduction amounts for 2023?"\n'
+            '- "Compare tax rates between partnerships and individuals"\n'
+            '- "What happens when an excise tax is applied?"'
+        )
+        answer = self._generate_chitchat_answer(query, capabilities_context)
         return {
-            "answer": (
-                "Hello! I'm TaxGPT, a financial and tax assistant. I can help you with:\n\n"
-                "- **Tax data analysis**: Average tax rates, totals, comparisons across "
-                "states, taxpayer types, and years (5,000 records)\n"
-                "- **IRS Form 1040 instructions**: Filing requirements, deductions, credits, deadlines\n"
-                "- **US Tax Code (Title 26)**: Legal provisions and cross-references\n"
-                "- **Tax economics**: Concepts like excise taxes, elasticity, and welfare analysis\n\n"
-                "Try asking something specific like:\n"
-                '- "What is the average tax rate for corporations in California?"\n'
-                '- "What are the standard deduction amounts for 2023?"\n'
-                '- "Compare tax rates between partnerships and individuals"'
-            ),
+            "answer": answer,
             "sources": [],
             "routing_info": {"lanes": lanes, "entities": {}},
         }
+
+    def _generate_chitchat_answer(self, query: str, context: str) -> str:
+        """Generate a conversational response for non-retrieval queries."""
+        try:
+            response = self.openai_client.chat.completions.create(
+                model=settings.OPENAI_CHAT_MODEL,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are TaxGPT, a friendly and professional tax research assistant. "
+                            "Respond naturally to the user. If they greet you, greet back briefly. "
+                            "If they ask what you can or cannot do, explain clearly based on the "
+                            "context provided. Keep responses concise and helpful. "
+                            "Use bullet points when listing capabilities or limitations."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Context:\n{context}\n\nUser message: {query}",
+                    },
+                ],
+                temperature=0.3,
+                max_tokens=400,
+            )
+            return response.choices[0].message.content.strip()
+        except Exception:
+            logger.exception("Chitchat generation failed")
+            return "Hello! I'm TaxGPT. Ask me about tax data, IRS rules, or financial concepts."
 
     def _vector_search(self, query: str) -> tuple[str, list[str]]:
         """Retrieve semantically similar chunks from the vector store."""
