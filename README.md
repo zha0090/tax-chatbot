@@ -8,9 +8,7 @@ A hybrid RAG chatbot that answers financial and tax questions using structured d
 
 | | |
 |---|---|
-| **Author** | **Alex Gong** |
 | **Demo video** | [Watch on Loom](https://www.loom.com/share/46ae0a007bda4ccbb47f05c7c349268b) |
-| **GitHub** | [DevLaiGer](https://github.com/DevLaiGer) |
 
 ---
 
@@ -43,7 +41,7 @@ A hybrid RAG chatbot that answers financial and tax questions using structured d
 
 ```bash
 # 1. Clone and set up
-git clone https://github.com/DevLaiGer/taxGPT-chatbot.git && cd taxGPT-chatbot
+git clone https://github.com/zha0090/tax-chatbot.git && cd tax-chatbot
 python -m venv venv
 source venv/bin/activate  # Windows: .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
